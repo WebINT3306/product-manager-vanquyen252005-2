@@ -1,11 +1,284 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quản lý Sản phẩm</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Danh sách Sản phẩm</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --hover-color: #0056b3;
+            --bg-even: #f8f9fa;
+            --bg-hover: #e2e6ea;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+        }
+
+        /* Styling cho Form thêm sản phẩm */
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-color);
+        }
+
+        button#btn-add {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        button#btn-add:hover {
+            background-color: var(--hover-color);
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            width: 100%;
+            display: none;
+            margin-top: -5px;
+        }
+
+        /* Styling cho Bảng sản phẩm */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f3f5;
+            font-weight: bold;
+        }
+
+        /* Cột Tên sản phẩm có thể click để sort */
+        th#sort-name {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th#sort-name:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Hàng chẵn/lẻ và Hover */
+        tbody tr:nth-child(even) {
+            background-color: var(--bg-even);
+        }
+
+        tbody tr:hover {
+            background-color: var(--bg-hover);
+        }
+    </style>
 </head>
 <body>
 
+    <h1>Quản lý Sản phẩm</h1>
+
+    <div class="form-container">
+        <div class="form-group">
+            <label for="input-name">Tên sản phẩm *</label>
+            <input type="text" id="input-name" placeholder="Nhập tên SP...">
+        </div>
+        <div class="form-group">
+            <label for="input-category">Danh mục</label>
+            <input type="text" id="input-category" placeholder="Nhập danh mục...">
+        </div>
+        <div class="form-group">
+            <label for="input-price">Đơn giá *</label>
+            <input type="number" id="input-price" placeholder="Nhập giá..." min="1">
+        </div>
+        <div class="form-group">
+            <label for="input-quantity">Số lượng *</label>
+            <input type="number" id="input-quantity" placeholder="Nhập số lượng..." min="1">
+        </div>
+        <button id="btn-add">Thêm sản phẩm</button>
+        <div id="error-msg" class="error-message">Vui lòng nhập hợp lệ: Tên (≥ 3 ký tự), Giá (> 0), Số lượng (≥ 1).</div>
+    </div>
+
+    <table id="product-table">
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th id="sort-name">Tên sản phẩm <span id="sort-icon"></span></th>
+                <th>Danh mục</th>
+                <th>Đơn giá</th>
+                <th>Số lượng</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+
+    <script>
+        // --- 1. Khởi tạo biến toàn cục ---
+        let products = [];
+        let sortState = null; // null: chưa sort, true: tăng dần (▲), false: giảm dần (▼)
+
+        const tbody = document.querySelector('#product-table tbody');
+        const sortNameHeader = document.getElementById('sort-name');
+        const sortIcon = document.getElementById('sort-icon');
+
+        // Các elements của form
+        const inputName = document.getElementById('input-name');
+        const inputCategory = document.getElementById('input-category');
+        const inputPrice = document.getElementById('input-price');
+        const inputQuantity = document.getElementById('input-quantity');
+        const btnAdd = document.getElementById('btn-add');
+        const errorMsg = document.getElementById('error-msg');
+
+        // --- 2. Hàm Render Bảng ---
+        function renderTable(data) {
+            tbody.innerHTML = ''; // Làm sạch bảng trước khi render
+            
+            data.forEach((product, index) => {
+                const tr = document.createElement('tr');
+                
+                // Format giá tiền cho đẹp (tuỳ chọn nhưng nhìn sẽ chuyên nghiệp hơn)
+                const formattedPrice = new Intl.NumberFormat('vi-VN').format(product.price);
+
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category || 'N/A'}</td>
+                    <td>${formattedPrice} đ</td>
+                    <td>${product.quantity}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 3. Nạp dữ liệu qua AJAX (XMLHttpRequest) ---
+        function loadProducts() {
+            const xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        products = JSON.parse(xhr.responseText);
+                        renderTable(products);
+                    } catch (e) {
+                        console.error("Lỗi khi parse file JSON: ", e);
+                    }
+                }
+            };
+            xhr.open('GET', 'products.json', true);
+            xhr.send();
+        }
+
+        // Gọi hàm nạp dữ liệu khi load trang
+        window.onload = loadProducts;
+
+        // --- 4. Chức năng Sắp xếp ---
+        sortNameHeader.addEventListener('click', function() {
+            if (sortState === null || sortState === false) {
+                // Đang không sort hoặc sort giảm -> Chuyển sang sort tăng dần
+                products.sort((a, b) => a.name.localeCompare(b.name));
+                sortState = true;
+                sortIcon.textContent = ' ▲';
+            } else {
+                // Đang sort tăng -> Chuyển sang sort giảm dần
+                products.sort((a, b) => b.name.localeCompare(a.name));
+                sortState = false;
+                sortIcon.textContent = ' ▼';
+            }
+            renderTable(products);
+        });
+
+        // --- 5. Chức năng Thêm sản phẩm ---
+        btnAdd.addEventListener('click', function() {
+            const nameValue = inputName.value.trim();
+            const categoryValue = inputCategory.value.trim();
+            const priceValue = Number(inputPrice.value);
+            const quantityValue = Number(inputQuantity.value);
+
+            // Validation cơ bản
+            if (nameValue.length < 3 || isNaN(priceValue) || priceValue <= 0 || isNaN(quantityValue) || quantityValue < 1 || !Number.isInteger(quantityValue)) {
+                errorMsg.style.display = 'block';
+                return;
+            }
+            errorMsg.style.display = 'none';
+
+            // Tạo object sản phẩm mới
+            const newProduct = {
+                id: Date.now(), // Tạo ID ảo
+                name: nameValue,
+                category: categoryValue,
+                price: priceValue,
+                quantity: quantityValue
+            };
+
+            // Thêm vào mảng data
+            products.push(newProduct);
+
+            // Nếu bảng đang trong trạng thái được sắp xếp, ta sắp xếp lại trước khi render
+            if (sortState === true) {
+                products.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sortState === false) {
+                products.sort((a, b) => b.name.localeCompare(a.name));
+            }
+
+            // Render lại bảng với dữ liệu mới
+            renderTable(products);
+
+            // Reset form
+            inputName.value = '';
+            inputCategory.value = '';
+            inputPrice.value = '';
+            inputQuantity.value = '';
+            
+            // Focus lại ô Tên sau khi thêm
+            inputName.focus(); 
+        });
+    </script>
 </body>
 </html>
